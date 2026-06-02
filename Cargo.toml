@@ -1,0 +1,31 @@
+[package]
+name = "rsomics-limma-squeeze-var"
+version = "0.1.0"
+description = "Empirical-Bayes shrinkage of a vector of gene variances toward a fitted scaled-F prior (limma squeezeVar / fitFDist) — a clean-room Rust reimplementation"
+edition = "2024"
+rust-version = "1.91"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/omics-rust/rsomics-limma-squeeze-var"
+authors = ["Zane Leong <efd@live.com>"]
+
+[[bin]]
+name = "rsomics-limma-squeeze-var"
+path = "src/main.rs"
+
+[lib]
+name = "rsomics_limma_squeeze_var"
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+rsomics-common = { version = "0.6" }
+rsomics-help = { version = "0.3" }
+clap = { version = "4", features = ["derive"] }
+ryu = "1"
+
+[dev-dependencies]
+criterion = { version = "0.7", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "bench"
+harness = false
