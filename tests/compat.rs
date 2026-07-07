@@ -121,6 +121,30 @@ fn golden_pergene_df() {
     assert_close(&parse(&ours_out), &parse(&expected), "per-gene df (golden)");
 }
 
+#[test]
+fn errors_when_no_gene_can_fit_prior() {
+    // Every gene has df 0, so limma's squeezeVar stops with "Could not estimate
+    // prior df" rather than emitting NaN. We must fail loud too.
+    let dir = std::env::temp_dir().join(format!("squeezevar_faildf_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let vars = dir.join("vars.tsv");
+    std::fs::write(&vars, "gene\tvar\tdf\ng1\t0.5\t0\ng2\t1.2\t0\ng3\t0.8\t0\n").unwrap();
+    let out = Command::new(ours())
+        .args(["--var", vars.to_str().unwrap(), "-q"])
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(
+        !out.status.success(),
+        "expected non-zero exit on unfittable prior"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("could not estimate prior df"),
+        "stderr was: {stderr}"
+    );
+}
+
 fn rscript() -> Option<String> {
     let conda = format!(
         "{}/miniconda3/envs/r-bioc/bin/Rscript",

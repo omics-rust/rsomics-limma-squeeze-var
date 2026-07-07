@@ -65,6 +65,12 @@ pub fn run(opts: &Options) -> Result<Results> {
         }
     };
 
+    if fit.df_prior.is_nan() {
+        return Err(RsomicsError::InvalidInput(
+            "could not estimate prior df: no gene has a finite variance with positive df".into(),
+        ));
+    }
+
     Ok(Results {
         genes: table.genes,
         var_post,

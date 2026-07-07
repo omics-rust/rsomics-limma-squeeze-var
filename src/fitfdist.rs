@@ -106,7 +106,7 @@ pub fn fit_f_dist(x: &[f64], df1: &Df) -> PriorFit {
         }
     } else {
         PriorFit {
-            var_prior: emean.exp(),
+            var_prior: xs.iter().sum::<f64>() / nf,
             df_prior: f64::INFINITY,
         }
     }
@@ -114,6 +114,17 @@ pub fn fit_f_dist(x: &[f64], df1: &Df) -> PriorFit {
 
 /// var.post: shrink each variance toward the prior by the posterior weights.
 pub fn squeeze_var(x: &[f64], df1: &Df) -> (Vec<f64>, PriorFit) {
+    // Fewer than three genes carry no information to fit a prior: limma leaves
+    // them unshrunk (var.post = var, df.prior = 0) rather than fitting noise.
+    if x.len() < 3 {
+        return (
+            x.to_vec(),
+            PriorFit {
+                var_prior: x.first().copied().unwrap_or(f64::NAN),
+                df_prior: 0.0,
+            },
+        );
+    }
     let fit = fit_f_dist(x, df1);
     let post: Vec<f64> = if fit.df_prior.is_infinite() {
         vec![fit.var_prior; x.len()]
@@ -164,5 +175,36 @@ mod tests {
         assert_eq!(fit.df_prior, 0.0);
         assert_eq!(fit.var_prior, 2.5);
         assert_eq!(post[0], 2.5);
+    }
+
+    #[test]
+    fn two_genes_unshrunk() {
+        // limma leaves fewer than three genes untouched: var.post = var, df.prior = 0.
+        let x = vec![0.8, 2.4];
+        let (post, fit) = squeeze_var(&x, &Df::scalar(4.0));
+        assert_eq!(fit.df_prior, 0.0);
+        assert_eq!(post, x);
+    }
+
+    #[test]
+    fn nonpositive_evar_uses_arithmetic_mean() {
+        // Equal variances drive evar<=0; limma's Inf-df branch sets var.prior to
+        // mean(var) (here 1.5), not exp(mean(log var)).
+        let x = vec![1.5, 1.5, 1.5, 1.5, 1.5];
+        let (post, fit) = squeeze_var(&x, &Df::scalar(4.0));
+        assert!(fit.df_prior.is_infinite());
+        assert!((fit.var_prior - 1.5).abs() < 1e-12, "{}", fit.var_prior);
+        assert!(post.iter().all(|&p| (p - 1.5).abs() < 1e-12));
+    }
+
+    #[test]
+    fn nonpositive_evar_mean_differs_from_geometric_mean() {
+        // Spread variances with small df still hit evar<=0; the arithmetic mean
+        // (1.08) is distinct from the geometric mean that the old code emitted.
+        let x = vec![0.5, 1.2, 0.8, 2.0, 0.3, 1.5, 0.9, 1.1, 0.7, 1.8];
+        let (_post, fit) = squeeze_var(&x, &Df::scalar(6.0));
+        assert!(fit.df_prior.is_infinite());
+        let mean = x.iter().sum::<f64>() / x.len() as f64;
+        assert!((fit.var_prior - mean).abs() < 1e-12, "{}", fit.var_prior);
     }
 }

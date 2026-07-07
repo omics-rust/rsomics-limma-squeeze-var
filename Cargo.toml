@@ -1,6 +1,6 @@
 [package]
 name = "rsomics-limma-squeeze-var"
-version = "0.1.0"
+version = "0.1.1"
 description = "Empirical-Bayes shrinkage of a vector of gene variances toward a fitted scaled-F prior (limma squeezeVar / fitFDist) — a clean-room Rust reimplementation"
 edition = "2024"
 rust-version = "1.91"
